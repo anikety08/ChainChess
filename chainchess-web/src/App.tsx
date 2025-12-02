@@ -23,9 +23,7 @@ import {
   Volume2,
   VolumeX,
   Settings,
-  Clock,
   History,
-  Sparkles,
 } from 'lucide-react';
 import clsx from 'clsx';
 import './App.css';
@@ -570,22 +568,22 @@ function ChainChessDashboard() {
 
               <div className="board-wrapper">
                 <Chessboard
-                  id="chainchess-board"
-                  position={selectedGame?.boardFen ?? 'start'}
-                  boardOrientation={orientation as 'white' | 'black'}
-                  arePiecesDraggable={canSubmitMove}
-                  customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
-                  customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
-                  customBoardStyle={{
-                    borderRadius: '32px',
-                    boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
-                    transition: 'all 0.3s ease',
+                  options={{
+                    position: selectedGame?.boardFen ?? 'start',
+                    boardOrientation: orientation as 'white' | 'black',
+                    allowDragging: canSubmitMove,
+                    darkSquareStyle: { backgroundColor: '#1f233d' },
+                    lightSquareStyle: { backgroundColor: '#f2f5ff' },
+                    boardStyle: {
+                      borderRadius: '32px',
+                      boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+                      transition: 'all 0.3s ease',
+                    },
+                    onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
+                      sourceSquare && targetSquare
+                        ? handlePieceDrop(sourceSquare, targetSquare, piece.pieceType)
+                        : false,
                   }}
-                  onPieceDrop={(sourceSquare, targetSquare, piece) =>
-                    sourceSquare && targetSquare
-                      ? handlePieceDrop(sourceSquare, targetSquare, piece as string)
-                      : false
-                  }
                 />
                 {!canSubmitMove && (
                   <div className="board-overlay">
@@ -890,21 +888,21 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
       <div className="board-wrapper">
         <Chessboard
-          id="chainchess-ai-board"
-          position={fen}
-          boardOrientation={orientation}
-          arePiecesDraggable={!aiThinking && game.turn() === 'w' && !game.isGameOver()}
-          customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
-          customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
-          customBoardStyle={{
-            borderRadius: '32px',
-            boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+          options={{
+            position: fen,
+            boardOrientation: orientation,
+            allowDragging: !aiThinking && game.turn() === 'w' && !game.isGameOver(),
+            darkSquareStyle: { backgroundColor: '#1f233d' },
+            lightSquareStyle: { backgroundColor: '#f2f5ff' },
+            boardStyle: {
+              borderRadius: '32px',
+              boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+            },
+            onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
+              sourceSquare && targetSquare
+                ? handleLocalDrop(sourceSquare, targetSquare, piece.pieceType)
+                : false,
           }}
-          onPieceDrop={(sourceSquare, targetSquare, piece) =>
-            sourceSquare && targetSquare
-              ? handleLocalDrop(sourceSquare, targetSquare, piece as string)
-              : false
-          }
         />
         {aiThinking && (
           <div className="board-overlay">
@@ -964,7 +962,7 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [status, setStatus] = useState<string>(() => describeLocalStatus(localGame));
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [, setHistoryIndex] = useState(-1);
 
   const resetGame = () => {
     localGame.reset();
@@ -1034,21 +1032,21 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
       <div className="board-wrapper">
         <Chessboard
-          id="chainchess-local-board"
-          position={fen}
-          boardOrientation={orientation}
-          arePiecesDraggable
-          customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
-          customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
-          customBoardStyle={{
-            borderRadius: '32px',
-            boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+          options={{
+            position: fen,
+            boardOrientation: orientation,
+            allowDragging: true,
+            darkSquareStyle: { backgroundColor: '#1f233d' },
+            lightSquareStyle: { backgroundColor: '#f2f5ff' },
+            boardStyle: {
+              borderRadius: '32px',
+              boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+            },
+            onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
+              sourceSquare && targetSquare
+                ? handleLocalDrop(sourceSquare, targetSquare, piece.pieceType)
+                : false,
           }}
-          onPieceDrop={(sourceSquare, targetSquare, piece) =>
-            sourceSquare && targetSquare
-              ? handleLocalDrop(sourceSquare, targetSquare, piece as string)
-              : false
-          }
         />
       </div>
 
@@ -1136,7 +1134,7 @@ function isPawn(piece: string) {
   return piece.toLowerCase().includes('p');
 }
 
-type DraggingPiece = never;
+
 
 function formatTimestamp(value?: number | string | null) {
   if (!value) return 'just now';

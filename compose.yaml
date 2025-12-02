@@ -10,6 +10,8 @@ services:
     volumes:
     - .:/build
     environment:
+    - APP_MODE=preview
+    - SKIP_CHAIN=yes
     - CARGO_BUILD_JOBS=2
     - CARGO_NET_RETRY=10
     shm_size: 2gb
