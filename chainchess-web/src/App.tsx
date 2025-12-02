@@ -1,4 +1,4 @@
-import type React from 'react';
+import React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   QueryClient,
@@ -34,6 +34,35 @@ import { SoundManager } from './components/SoundManager';
 
 const STORAGE_KEY = 'chainchess-config-v1';
 const queryClient = new QueryClient();
+
+class ErrorBoundary extends React.Component<{ fallback: React.ReactNode; children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+function SafeChessboard({ options }: { options: any }) {
+  return (
+    <ErrorBoundary
+      fallback={
+        <div className="status-banner error">
+          <AlertTriangle size={16} />
+          <span>Board failed to render. Check chessboard/react versions.</span>
+        </div>
+      }
+    >
+      <Chessboard options={options} />
+    </ErrorBoundary>
+  );
+}
 
 export default function App() {
   return (
@@ -567,7 +596,7 @@ function ChainChessDashboard() {
               </header>
 
               <div className="board-wrapper">
-                <Chessboard
+                <SafeChessboard
                   options={{
                     position: selectedGame?.boardFen ?? 'start',
                     boardOrientation: orientation as 'white' | 'black',
@@ -887,7 +916,7 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
       </header>
 
       <div className="board-wrapper">
-        <Chessboard
+        <SafeChessboard
           options={{
             position: fen,
             boardOrientation: orientation,
@@ -1031,7 +1060,7 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
       </header>
 
       <div className="board-wrapper">
-        <Chessboard
+        <SafeChessboard
           options={{
             position: fen,
             boardOrientation: orientation,
@@ -1063,7 +1092,7 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
             Flip Board
           </button>
           <button className="ghost-btn" type="button" onClick={undoMove} disabled={moveHistory.length === 0}>
-            <History size={16} />
+            {History ? <History size={16} /> : null}
             Undo
           </button>
         </div>
