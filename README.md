@@ -1,8 +1,9 @@
 # ChainChess – Real-Time On-Chain Chess for WaveHack
 
-ChainChess is a Linera microchain application where every chess move is validated, stored, and streamed in real time. It showcases:
+ChainChess is a Linera microchain application where every chess move is validated, stored, and streamed in real time.
 
-- **Deterministic AI** – the contract can instantly answer as black using a capture-first heuristic, so single players still get a complete match.
+- **On-chain chess** – all moves are validated and persisted on a Linera microchain with instant finality.
+- **Deterministic AI** – the contract can instantly answer as black using a capture-first heuristic, so solo players still get a complete match.
 - **Per-chain leaderboards** – wins/losses/draws and an Elo-lite rating are kept per chain ID.
 - **Local self-play mode** – a browser-only practice board where you can move for both sides without any wallet or validator.
 - **GraphQL-first UX** – the React control room talks directly to the Linera service endpoint (no bespoke backend).
@@ -18,7 +19,7 @@ Everything else (linera-service, pnpm, node, etc.) is installed inside the conta
 
 ## Quickstart (recommended)
 
-### After updating the contract, rebuild first:
+### Start everything (fresh build)
 
 ```bash
 # Stop any running containers
@@ -27,8 +28,8 @@ docker compose down
 # Rebuild the Docker image (compiles your updated contract)
 docker compose build --no-cache
 
-# Start everything
-docker compose up
+# Start everything (after a fresh build)
+docker compose up --force-recreate
 ```
 
 ### Or in one command:
@@ -37,17 +38,18 @@ docker compose up
 docker compose down && docker compose build --no-cache && docker compose up
 ```
 
-What the script does for you:
+What `docker compose up` + `run.bash` do for you:
 
 1. Spins up a Linera localnet with faucet access.
 2. Initializes a wallet, requests a fresh chain, and prints the `CHAIN_ID`.
 3. Builds and publishes the ChainChess application (`APP_ID` is logged).
-4. Starts `linera service --port 8081`.
-5. Installs frontend deps and launches `npm run dev -- --host 0.0.0.0 --port 5173`.
+4. Starts `linera service --port 8081` (GraphQL service).
+5. Installs frontend deps and launches the Vite UI on `http://localhost:5173`.
 
-Open http://localhost:5173 once the log shows `VITE vX ready`. The UI will pre-fill the service URL, chain ID, and app ID from the values that `run.bash` exports.
+Open `http://localhost:5173` once the log shows `VITE vX ready`. The UI will pre-fill the service URL,
+chain ID, and app ID from the values that `run.bash` exports.
 
-demo url - https://youtu.be/xlaFmEmFcYA
+Demo video: [`https://youtu.be/xlaFmEmFcYA`](https://youtu.be/xlaFmEmFcYA)
 
 ## Screenshots
 
@@ -60,7 +62,7 @@ demo url - https://youtu.be/xlaFmEmFcYA
 
 <p align="center"><i>Compact preview — three key screens side by side.</i></p>
 
-## Manual run (if you want full control)
+## Manual run (advanced / full control)
 
 ```bash
 # 1. start localnet + faucet
@@ -93,7 +95,8 @@ pnpm run dev --host 0.0.0.0 --port 5173
 1. **Connect** – if you ran the quickstart, the form is already populated. Otherwise paste your service URL, chain ID, and application ID, then hit “Save connection”.
 2. **Create a lobby** – choose a label and decide whether the embedded AI should play as black.
 3. **Share the lobby** – any other chain owner can join by selecting the lobby card and pressing “Join game”.
-4. **Play** – drag pieces; the UI validates moves via `chess.js`, then calls `submitMove` on the contract. When AI is enabled, the contract auto-generates the black move and updates the board instantly.
+4. **Play** – drag pieces; the UI validates moves via `chess.js`, then calls `submitMove` on the contract.
+   When AI is enabled, the contract auto-generates the black move and updates the board instantly.
 5. **Spectate** – anyone can connect with the service URL to see board state, move history, and leaderboard metrics.
 6. **Local self-play** – switch to the “Local self-play” tab in the UI to play a full game in your browser, moving for both sides (no chain connection required).
 

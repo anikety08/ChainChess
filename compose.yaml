@@ -11,7 +11,9 @@ services:
     - .:/build
     environment:
     - APP_MODE=preview
-    - SKIP_CHAIN=yes
+    # Run full on-chain stack (localnet + GraphQL service + web UI)
+    # Set SKIP_CHAIN=yes if you only want the frontend without Linera.
+    - SKIP_CHAIN=no
     - CARGO_BUILD_JOBS=2
     - CARGO_NET_RETRY=10
     shm_size: 2gb

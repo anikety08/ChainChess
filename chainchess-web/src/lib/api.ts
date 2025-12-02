@@ -122,15 +122,7 @@ export class ChainChessApi {
   }
 
   async fetchState(): Promise<ChainStateResponse> {
-    try {
-      return await this.client.request<ChainStateResponse>(STATE_QUERY);
-    } catch (error: any) {
-      // Return empty state on error instead of throwing
-      return {
-        games: [],
-        topPlayers: [],
-      };
-    }
+    return await this.client.request<ChainStateResponse>(STATE_QUERY);
   }
 
   async createGame(variables: CreateGameInput): Promise<ChainChessResponse> {
@@ -203,9 +195,9 @@ export class ChainChessApi {
 
   async testConnection(): Promise<boolean> {
     try {
-      await this.fetchState();
+      await this.client.request<ChainStateResponse>(STATE_QUERY);
       return true;
-    } catch {
+    } catch (error) {
       return false;
     }
   }

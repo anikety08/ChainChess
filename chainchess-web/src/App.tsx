@@ -49,17 +49,21 @@ class ErrorBoundary extends React.Component<{ fallback: React.ReactNode; childre
   }
 }
 
-function SafeChessboard({ options }: { options: any }) {
+// Wrapper that isolates any board rendering crashes and uses the official
+// react-chessboard props instead of a custom "options" object.
+type SafeChessboardProps = React.ComponentProps<typeof Chessboard>;
+
+function SafeChessboard(props: SafeChessboardProps) {
   return (
     <ErrorBoundary
       fallback={
         <div className="status-banner error">
           <AlertTriangle size={16} />
-          <span>Board failed to render. Check chessboard/react versions.</span>
+          <span>Board failed to render. Check chessboard / React versions.</span>
         </div>
       }
     >
-      <Chessboard options={options} />
+      <Chessboard {...props} />
     </ErrorBoundary>
   );
 }
@@ -338,8 +342,8 @@ function ChainChessDashboard() {
           </h1>
           <p className="lead">
             Play chess on-chain with instant finality. Create games, challenge AI opponents, or
-            practice locally. Every move is validated and stored on the Linera blockchain. Experience
-            the future of decentralized gaming.
+            practice locally. Every move is validated and stored on the Linera blockchain so you get
+            provable history, live leaderboards, and a smooth, modern chess experience.
           </p>
           <div className="hero-actions">
             <a href="https://linera.dev" target="_blank" rel="noreferrer" className="ghost-btn">
@@ -355,6 +359,15 @@ function ChainChessDashboard() {
               <RefreshCw size={16} />
               Sync state
             </button>
+            <a
+              href="https://youtu.be/xlaFmEmFcYA"
+              target="_blank"
+              rel="noreferrer"
+              className="ghost-btn"
+            >
+              <Lightbulb size={16} />
+              Demo video
+            </a>
             <button className="ghost-btn" type="button" onClick={() => setShowAbout(true)}>
               <ShieldCheck size={16} />
               About app
@@ -597,22 +610,21 @@ function ChainChessDashboard() {
 
               <div className="board-wrapper">
                 <SafeChessboard
-                  options={{
-                    position: selectedGame?.boardFen ?? 'start',
-                    boardOrientation: orientation as 'white' | 'black',
-                    allowDragging: canSubmitMove,
-                    darkSquareStyle: { backgroundColor: '#1f233d' },
-                    lightSquareStyle: { backgroundColor: '#f2f5ff' },
-                    boardStyle: {
-                      borderRadius: '32px',
-                      boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
-                      transition: 'all 0.3s ease',
-                    },
-                    onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
-                      sourceSquare && targetSquare
-                        ? handlePieceDrop(sourceSquare, targetSquare, piece.pieceType)
-                        : false,
+                  position={selectedGame?.boardFen ?? 'start'}
+                  boardOrientation={orientation as 'white' | 'black'}
+                  arePiecesDraggable={canSubmitMove}
+                  customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
+                  customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
+                  customBoardStyle={{
+                    borderRadius: '32px',
+                    boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+                    transition: 'all 0.3s ease',
                   }}
+                  onPieceDrop={(sourceSquare, targetSquare, piece) =>
+                    sourceSquare && targetSquare
+                      ? handlePieceDrop(sourceSquare, targetSquare, piece)
+                      : false
+                  }
                 />
                 {!canSubmitMove && (
                   <div className="board-overlay">
@@ -917,21 +929,20 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
       <div className="board-wrapper">
         <SafeChessboard
-          options={{
-            position: fen,
-            boardOrientation: orientation,
-            allowDragging: !aiThinking && game.turn() === 'w' && !game.isGameOver(),
-            darkSquareStyle: { backgroundColor: '#1f233d' },
-            lightSquareStyle: { backgroundColor: '#f2f5ff' },
-            boardStyle: {
-              borderRadius: '32px',
-              boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
-            },
-            onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
-              sourceSquare && targetSquare
-                ? handleLocalDrop(sourceSquare, targetSquare, piece.pieceType)
-                : false,
+          position={fen}
+          boardOrientation={orientation}
+          arePiecesDraggable={!aiThinking && game.turn() === 'w' && !game.isGameOver()}
+          customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
+          customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
+          customBoardStyle={{
+            borderRadius: '32px',
+            boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
           }}
+          onPieceDrop={(sourceSquare, targetSquare, piece) =>
+            sourceSquare && targetSquare
+              ? handleLocalDrop(sourceSquare, targetSquare, piece)
+              : false
+          }
         />
         {aiThinking && (
           <div className="board-overlay">
@@ -1061,21 +1072,20 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
       <div className="board-wrapper">
         <SafeChessboard
-          options={{
-            position: fen,
-            boardOrientation: orientation,
-            allowDragging: true,
-            darkSquareStyle: { backgroundColor: '#1f233d' },
-            lightSquareStyle: { backgroundColor: '#f2f5ff' },
-            boardStyle: {
-              borderRadius: '32px',
-              boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
-            },
-            onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
-              sourceSquare && targetSquare
-                ? handleLocalDrop(sourceSquare, targetSquare, piece.pieceType)
-                : false,
+          position={fen}
+          boardOrientation={orientation}
+          arePiecesDraggable
+          customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
+          customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
+          customBoardStyle={{
+            borderRadius: '32px',
+            boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
           }}
+          onPieceDrop={(sourceSquare, targetSquare, piece) =>
+            sourceSquare && targetSquare
+              ? handleLocalDrop(sourceSquare, targetSquare, piece)
+              : false
+          }
         />
       </div>
 
