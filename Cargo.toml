@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/chainchess",
+]
+
+[workspace.dependencies]
+async-graphql = { version = "7.0.17", default-features = false }
+bcs = "0.1.6"
+chess = "3.2.0"
+linera-sdk = "0.15.5"
+serde = { version = "1.0.215", features = ["derive"] }
+thiserror = "1.0.65"

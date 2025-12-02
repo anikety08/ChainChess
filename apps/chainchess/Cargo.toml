@@ -1,0 +1,21 @@
+[package]
+name = "chainchess"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-graphql.workspace = true
+bcs.workspace = true
+linera-sdk.workspace = true
+serde.workspace = true
+chess.workspace = true
+thiserror.workspace = true
+
+[[bin]]
+name = "chainchess_contract"
+path = "src/contract.rs"
+
+[[bin]]
+name = "chainchess_service"
+path = "src/service.rs"
+

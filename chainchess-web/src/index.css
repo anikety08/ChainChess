@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg: #03040b;
+  --bg-accent: radial-gradient(circle at 20% 20%, rgba(120, 224, 220, 0.25), transparent 35%),
+    radial-gradient(circle at 80% 0%, rgba(244, 114, 182, 0.2), transparent 30%),
+    radial-gradient(circle at 50% 80%, rgba(139, 92, 246, 0.15), transparent 40%);
+  --accent: #78e0dc;
+  --accent-secondary: #f472b6;
+  --accent-tertiary: #8b5cf6;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  background-image: var(--bg-accent);
+  color: #f6f7ff;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}

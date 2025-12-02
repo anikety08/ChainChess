@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    ports:
+    - "5173:5173" # Web app
+    - "8080:8080" # faucet
+    - "8081:8081" # GraphQL service
+    - "9001:9001" # shard proxy
+    - "13001:13001" # shard
+    volumes:
+    - .:/build
+    environment:
+    - CARGO_BUILD_JOBS=2
+    - CARGO_NET_RETRY=10
+    shm_size: 2gb
+    ulimits:
+      memlock: -1
+      nofile:
+        soft: 65536
+        hard: 65536

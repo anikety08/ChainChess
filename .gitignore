@@ -1,0 +1,16 @@
+# Build artifacts
+/target
+**/target
+
+# Node dependencies
+**/node_modules
+**/dist
+
+# Local env files
+.env
+**/.env.local
+
+# Linera temp dirs
+.linera*
+
+.pnpm-*
