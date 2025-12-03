@@ -53,29 +53,20 @@ CHAIN_ID="${CHAIN_INFO[0]}"
 
 APP_PATH=apps/chainchess
 
-# Clean previous builds to avoid conflicts
-echo "🧹 Cleaning previous build artifacts..."
-rm -rf "$APP_PATH/target" 2>/dev/null || true
-
-echo "📦 Building and publishing contract..."
-echo "⏳ This may take 5-10 minutes (compiling Rust dependencies)..."
+# Build + publish using linera project helper (handles wasm + blobs internally)
+echo "📦 Building and publishing contract (linera project)..."
 
 MAX_RETRIES=2
 APP_ID=""
 for i in $(seq 1 $MAX_RETRIES); do
-  if cargo build --release --target wasm32-unknown-unknown -p chainchess 2>&1; then
-    if OUTPUT=$(linera publish-and-create \
-      target/wasm32-unknown-unknown/release/chainchess_{contract,service}.wasm \
-      --json-argument "null" 2>&1); then
-      APP_ID=$(echo "$OUTPUT" | grep -oP 'linera_app::[a-f0-9]+' | head -1 || echo "$OUTPUT")
-      if [[ "$APP_ID" =~ linera_app:: ]]; then
-        break
-      fi
+  if OUTPUT=$(linera project publish-and-create "$APP_PATH" 2>&1); then
+    APP_ID=$(echo "$OUTPUT" | grep -oP 'linera_app::[a-f0-9]+' | head -1 || echo "$OUTPUT")
+    if [[ "$APP_ID" =~ linera_app:: ]]; then
+      break
     fi
   fi
   if [ $i -lt $MAX_RETRIES ]; then
-    echo "⚠️  Build failed (attempt $i/$MAX_RETRIES), cleaning and retrying..."
-    rm -rf "$APP_PATH/target" 2>/dev/null || true
+    echo "⚠️  Publish failed (attempt $i/$MAX_RETRIES). Retrying..."
     sleep 3
   else
     echo "❌ Contract build/publish failed after $MAX_RETRIES attempts!"

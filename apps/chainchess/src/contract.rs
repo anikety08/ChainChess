@@ -498,7 +498,7 @@ impl ChainChessContract {
         let from_sq = format!("{}", from);
         let to_sq = format!("{}", to);
         
-        if let Some(captured) = board.piece_on(to) {
+        if let Some(_captured) = board.piece_on(to) {
             if piece_char == ' ' {
                 format!("{}{}", from_sq.chars().next().unwrap(), to_sq)
             } else {
