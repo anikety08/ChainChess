@@ -610,21 +610,22 @@ function ChainChessDashboard() {
 
               <div className="board-wrapper">
                 <SafeChessboard
-                  position={selectedGame?.boardFen ?? 'start'}
-                  boardOrientation={orientation as 'white' | 'black'}
-                  arePiecesDraggable={canSubmitMove}
-                  customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
-                  customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
-                  customBoardStyle={{
-                    borderRadius: '32px',
-                    boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
-                    transition: 'all 0.3s ease',
+                  options={{
+                    position: selectedGame?.boardFen ?? 'start',
+                    boardOrientation: orientation as 'white' | 'black',
+                    allowDragging: canSubmitMove,
+                    darkSquareStyle: { backgroundColor: '#1f233d' },
+                    lightSquareStyle: { backgroundColor: '#f2f5ff' },
+                    boardStyle: {
+                      borderRadius: '32px',
+                      boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+                      transition: 'all 0.3s ease',
+                    },
+                    onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
+                      sourceSquare && targetSquare
+                        ? handlePieceDrop(sourceSquare, targetSquare, piece.pieceType)
+                        : false,
                   }}
-                  onPieceDrop={(sourceSquare, targetSquare, piece) =>
-                    sourceSquare && targetSquare
-                      ? handlePieceDrop(sourceSquare, targetSquare, piece)
-                      : false
-                  }
                 />
                 {!canSubmitMove && (
                   <div className="board-overlay">
@@ -805,44 +806,57 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
   const [status, setStatus] = useState<string>(() => describeLocalStatus(game));
   const [aiDifficulty, setAIDifficulty] = useState<AIDifficulty>('medium');
   const [aiThinking, setAiThinking] = useState(false);
-  const [moveHistory, setMoveHistory] = useState<string[]>([]);
+  const [moveHistory, setMoveHistory] = useState<Array<{ san: string; playedBy: 'You' | 'AI' }>>([]);
   const [ai] = useState(() => new ChessAI('medium'));
   const [showHint, setShowHint] = useState<string | null>(null);
+  const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white');
+  const aiColor = playerColor === 'white' ? 'black' : 'white';
+  const [lastMoveSquares, setLastMoveSquares] = useState<{ from: string; to: string } | null>(null);
+  const [capturedPieces, setCapturedPieces] = useState<{ you: string[]; ai: string[] }>({
+    you: [],
+    ai: [],
+  });
 
   useEffect(() => {
     ai.setDifficulty(aiDifficulty);
   }, [aiDifficulty, ai]);
 
-  const resetGame = () => {
-    game.reset();
-    setFen(game.fen());
-    setStatus(describeLocalStatus(game));
-    setMoveHistory([]);
-    setShowHint(null);
-  };
+  const aiTurnColor = aiColor === 'white' ? 'w' : 'b';
+  const playerTurnColor = playerColor === 'white' ? 'w' : 'b';
 
-  const flipBoard = () => {
-    setOrientation((prev) => (prev === 'white' ? 'black' : 'white'));
-  };
+  const highlightStyles = useMemo(() => {
+    if (!lastMoveSquares) return {};
+    return {
+      [lastMoveSquares.from]: {
+        boxShadow: 'inset 0 0 0 4px rgba(244, 114, 182, 0.55)',
+      },
+      [lastMoveSquares.to]: {
+        boxShadow: 'inset 0 0 0 4px rgba(120, 224, 220, 0.7)',
+      },
+    };
+  }, [lastMoveSquares]);
 
-  const getHint = () => {
-    const bestMove = ai.getBestMove(game);
-    if (bestMove) {
-      setShowHint(bestMove);
-      setTimeout(() => setShowHint(null), 3000);
-    }
+  const recordCapture = (captured: string | undefined | null, by: 'you' | 'ai') => {
+    if (!captured) return;
+    setCapturedPieces((prev) => ({
+      ...prev,
+      [by]: [...prev[by], captured.toUpperCase()],
+    }));
   };
 
   const makeAIMove = useCallback(async () => {
-    if (game.isGameOver() || game.turn() === 'w') return;
+    if (game.isGameOver() || game.turn() !== aiTurnColor) return;
 
     setAiThinking(true);
-    // Simulate thinking time
     await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
 
     const bestMove = ai.getBestMove(game);
     if (bestMove) {
-      const move = game.move(bestMove);
+      const move = game.move({
+        from: bestMove.from,
+        to: bestMove.to,
+        promotion: bestMove.promotion,
+      });
       if (move) {
         const soundManager = SoundManager.getInstance();
         soundManager.setEnabled(soundsEnabled);
@@ -858,15 +872,50 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
         setFen(game.fen());
         setStatus(describeLocalStatus(game));
-        setMoveHistory((prev) => [...prev, bestMove]);
+        setMoveHistory((prev) => [...prev, { san: move.san, playedBy: 'AI' }]);
+        setLastMoveSquares({ from: move.from, to: move.to });
+        recordCapture(move.captured, 'ai');
       }
     }
     setAiThinking(false);
-  }, [game, ai, soundsEnabled]);
+  }, [game, ai, soundsEnabled, aiTurnColor]);
+
+  const resetGame = useCallback(() => {
+    game.reset();
+    setFen(game.fen());
+    setStatus(describeLocalStatus(game));
+    setMoveHistory([]);
+    setShowHint(null);
+    setLastMoveSquares(null);
+    setCapturedPieces({ you: [], ai: [] });
+    if (playerColor === 'black') {
+      setTimeout(() => makeAIMove(), 400);
+    }
+  }, [game, playerColor, makeAIMove]);
+
+  useEffect(() => {
+    resetGame();
+  }, [playerColor, resetGame]);
+
+  useEffect(() => {
+    setOrientation(playerColor);
+  }, [playerColor]);
+
+  const flipBoard = () => {
+    setOrientation((prev) => (prev === 'white' ? 'black' : 'white'));
+  };
+
+  const getHint = () => {
+    const bestMove = ai.getBestMove(game);
+    if (bestMove) {
+      setShowHint(bestMove.san);
+      setTimeout(() => setShowHint(null), 3000);
+    }
+  };
 
   const handleLocalDrop = useCallback(
     (source: string, target: string, piece: string) => {
-      if (game.turn() !== 'w' || aiThinking) return false;
+      if (aiThinking || game.turn() !== playerTurnColor) return false;
 
       const move = game.move({
         from: source,
@@ -890,16 +939,17 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
       setFen(game.fen());
       setStatus(describeLocalStatus(game));
-      setMoveHistory((prev) => [...prev, move.san]);
+      setMoveHistory((prev) => [...prev, { san: move.san, playedBy: 'You' }]);
+      setLastMoveSquares({ from: move.from, to: move.to });
+      recordCapture(move.captured, 'you');
 
-      // AI makes move after a short delay
       setTimeout(() => {
         makeAIMove();
-      }, 300);
+      }, 350);
 
       return true;
     },
-    [game, aiThinking, soundsEnabled, makeAIMove],
+    [game, aiThinking, soundsEnabled, makeAIMove, playerTurnColor],
   );
 
   useEffect(() => {
@@ -916,6 +966,15 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
         <div className="status-group">
           <select
             className="difficulty-select"
+            value={playerColor}
+            onChange={(e) => setPlayerColor(e.target.value as 'white' | 'black')}
+            disabled={aiThinking}
+          >
+            <option value="white">Play as White</option>
+            <option value="black">Play as Black</option>
+          </select>
+          <select
+            className="difficulty-select"
             value={aiDifficulty}
             onChange={(e) => setAIDifficulty(e.target.value as AIDifficulty)}
             disabled={aiThinking}
@@ -929,20 +988,31 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
       <div className="board-wrapper">
         <SafeChessboard
-          position={fen}
-          boardOrientation={orientation}
-          arePiecesDraggable={!aiThinking && game.turn() === 'w' && !game.isGameOver()}
-          customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
-          customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
-          customBoardStyle={{
-            borderRadius: '32px',
-            boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+          options={{
+            position: fen,
+            boardOrientation: orientation,
+            allowDragging: !aiThinking && !game.isGameOver() && game.turn() === playerTurnColor,
+            darkSquareStyle: { backgroundColor: '#1f233d' },
+            lightSquareStyle: { backgroundColor: '#f2f5ff' },
+            boardStyle: {
+              borderRadius: '32px',
+              boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+            },
+            squareStyles: highlightStyles,
+            arrows: lastMoveSquares
+              ? [
+                  {
+                    startSquare: lastMoveSquares.from,
+                    endSquare: lastMoveSquares.to,
+                    color: '#f472b6',
+                  },
+                ]
+              : [],
+            onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
+              sourceSquare && targetSquare
+                ? handleLocalDrop(sourceSquare, targetSquare, piece.pieceType)
+                : false,
           }}
-          onPieceDrop={(sourceSquare, targetSquare, piece) =>
-            sourceSquare && targetSquare
-              ? handleLocalDrop(sourceSquare, targetSquare, piece)
-              : false
-          }
         />
         {aiThinking && (
           <div className="board-overlay">
@@ -960,6 +1030,33 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
         )}
       </div>
 
+      <div className="captured-row">
+        <div>
+          <p className="muted tiny">You captured</p>
+          <div className="captured-pieces">
+            {capturedPieces.you.length
+              ? capturedPieces.you.map((piece, idx) => (
+                  <span key={`${piece}-you-${idx}`} className="piece-badge">
+                    {piece}
+                  </span>
+                ))
+              : '—'}
+          </div>
+        </div>
+        <div>
+          <p className="muted tiny">AI captured</p>
+          <div className="captured-pieces">
+            {capturedPieces.ai.length
+              ? capturedPieces.ai.map((piece, idx) => (
+                  <span key={`${piece}-ai-${idx}`} className="piece-badge danger">
+                    {piece}
+                  </span>
+                ))
+              : '—'}
+          </div>
+        </div>
+      </div>
+
       <div className="local-controls">
         <p className={clsx('status-text', game.isCheckmate() && 'checkmate', game.isCheck() && 'check')}>
           {status}
@@ -972,7 +1069,12 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
           <button className="ghost-btn" type="button" onClick={flipBoard}>
             Flip Board
           </button>
-          <button className="ghost-btn" type="button" onClick={getHint} disabled={aiThinking || game.turn() !== 'w'}>
+          <button
+            className="ghost-btn"
+            type="button"
+            onClick={getHint}
+            disabled={aiThinking || game.turn() !== playerTurnColor}
+          >
             <Lightbulb size={16} />
             Hint
           </button>
@@ -986,7 +1088,8 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
             {moveHistory.slice(-10).map((move, idx) => (
               <div key={idx} className="move-pill">
                 <span className="move-number">{idx + 1}.</span>
-                <span className="uci">{move}</span>
+                <span className="uci">{move.san}</span>
+                <span className="move-player">{move.playedBy}</span>
               </div>
             ))}
           </div>
@@ -1072,20 +1175,21 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
       <div className="board-wrapper">
         <SafeChessboard
-          position={fen}
-          boardOrientation={orientation}
-          arePiecesDraggable
-          customDarkSquareStyle={{ backgroundColor: '#1f233d' }}
-          customLightSquareStyle={{ backgroundColor: '#f2f5ff' }}
-          customBoardStyle={{
-            borderRadius: '32px',
-            boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+          options={{
+            position: fen,
+            boardOrientation: orientation,
+            allowDragging: true,
+            darkSquareStyle: { backgroundColor: '#1f233d' },
+            lightSquareStyle: { backgroundColor: '#f2f5ff' },
+            boardStyle: {
+              borderRadius: '32px',
+              boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+            },
+            onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
+              sourceSquare && targetSquare
+                ? handleLocalDrop(sourceSquare, targetSquare, piece.pieceType)
+                : false,
           }}
-          onPieceDrop={(sourceSquare, targetSquare, piece) =>
-            sourceSquare && targetSquare
-              ? handleLocalDrop(sourceSquare, targetSquare, piece)
-              : false
-          }
         />
       </div>
 

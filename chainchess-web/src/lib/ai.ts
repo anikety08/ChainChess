@@ -1,10 +1,11 @@
 import { Chess } from 'chess.js';
+import type { Move } from 'chess.js';
 import type { Square } from 'chess.js';
 
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
 
 interface MoveScore {
-  move: string;
+  move: Move;
   score: number;
 }
 
@@ -19,8 +20,8 @@ export class ChessAI {
     this.difficulty = difficulty;
   }
 
-  getBestMove(game: Chess): string | null {
-    const legalMoves = game.moves({ verbose: true });
+  getBestMove(game: Chess): Move | null {
+    const legalMoves = game.moves({ verbose: true }) as Move[];
     if (legalMoves.length === 0) return null;
 
     switch (this.difficulty) {
@@ -33,45 +34,42 @@ export class ChessAI {
     }
   }
 
-  private getEasyMove(game: Chess, moves: any[]): string {
+  private getEasyMove(game: Chess, moves: Move[]): Move {
     // Easy: Random move, sometimes makes mistakes
     if (Math.random() < 0.3) {
       // 30% chance to make a suboptimal move
       const badMoves = moves.filter((m) => {
         const testGame = new Chess(game.fen());
-        testGame.move(m);
+        testGame.move({ from: m.from, to: m.to, promotion: m.promotion });
         return !this.isGoodMove(testGame, m);
       });
       if (badMoves.length > 0) {
-        const randomBad = badMoves[Math.floor(Math.random() * badMoves.length)];
-        return randomBad.san;
+        return badMoves[Math.floor(Math.random() * badMoves.length)];
       }
     }
-    const randomMove = moves[Math.floor(Math.random() * moves.length)];
-    return randomMove.san;
+    return moves[Math.floor(Math.random() * moves.length)];
   }
 
-  private getMediumMove(game: Chess, moves: any[]): string {
+  private getMediumMove(game: Chess, moves: Move[]): Move {
     // Medium: Prefers captures and center control
     const scoredMoves: MoveScore[] = moves.map((m) => ({
-      move: m.san,
+      move: m,
       score: this.scoreMove(game, m),
     }));
 
     scoredMoves.sort((a, b) => b.score - a.score);
     const topMoves = scoredMoves.slice(0, Math.max(1, Math.floor(scoredMoves.length * 0.3)));
-    const selected = topMoves[Math.floor(Math.random() * topMoves.length)];
-    return selected.move;
+    return topMoves[Math.floor(Math.random() * topMoves.length)].move;
   }
 
-  private getHardMove(game: Chess, moves: any[]): string {
+  private getHardMove(game: Chess, moves: Move[]): Move {
     // Hard: Minimax with depth 3
     let bestMove = moves[0];
     let bestScore = -Infinity;
 
     for (const move of moves) {
       const testGame = new Chess(game.fen());
-      testGame.move(move);
+      testGame.move({ from: move.from, to: move.to, promotion: move.promotion });
       const score = this.minimax(testGame, 3, false, -Infinity, Infinity);
       if (score > bestScore) {
         bestScore = score;
@@ -79,7 +77,7 @@ export class ChessAI {
       }
     }
 
-    return bestMove.san;
+    return bestMove;
   }
 
   private minimax(game: Chess, depth: number, maximizing: boolean, alpha: number, beta: number): number {
@@ -87,7 +85,7 @@ export class ChessAI {
       return this.evaluatePosition(game);
     }
 
-    const moves = game.moves({ verbose: true });
+    const moves = game.moves({ verbose: true }) as Move[];
     if (moves.length === 0) {
       return this.evaluatePosition(game);
     }
@@ -96,7 +94,7 @@ export class ChessAI {
       let maxEval = -Infinity;
       for (const move of moves) {
         const testGame = new Chess(game.fen());
-        testGame.move(move);
+        testGame.move({ from: move.from, to: move.to, promotion: move.promotion });
         const evaluation = this.minimax(testGame, depth - 1, false, alpha, beta);
         maxEval = Math.max(maxEval, evaluation);
         alpha = Math.max(alpha, evaluation);
@@ -107,7 +105,7 @@ export class ChessAI {
       let minEval = Infinity;
       for (const move of moves) {
         const testGame = new Chess(game.fen());
-        testGame.move(move);
+        testGame.move({ from: move.from, to: move.to, promotion: move.promotion });
         const evaluation = this.minimax(testGame, depth - 1, true, alpha, beta);
         minEval = Math.min(minEval, evaluation);
         beta = Math.min(beta, evaluation);
@@ -167,11 +165,11 @@ export class ChessAI {
     return score;
   }
 
-  private scoreMove(game: Chess, move: any): number {
+  private scoreMove(game: Chess, move: Move): number {
     let score = 0;
     const testGame = new Chess(game.fen());
-    const captured = testGame.get(move.to);
-    testGame.move(move);
+    const captured = move.captured;
+    testGame.move({ from: move.from, to: move.to, promotion: move.promotion });
 
     // Capture bonus
     if (captured) {
@@ -182,7 +180,7 @@ export class ChessAI {
         r: 5,
         q: 9,
       };
-      score += (pieceValues[captured.type] || 0) * 10;
+      score += (pieceValues[captured.toLowerCase()] || 0) * 10;
     }
 
     // Center control
@@ -204,9 +202,9 @@ export class ChessAI {
     return score;
   }
 
-  private isGoodMove(game: Chess, move: any): boolean {
+  private isGoodMove(game: Chess, move: Move): boolean {
     const testGame = new Chess(game.fen());
-    testGame.move(move);
+    testGame.move({ from: move.from, to: move.to, promotion: move.promotion });
     return !testGame.isCheckmate() && !testGame.isCheck();
   }
 }
