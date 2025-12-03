@@ -54,13 +54,12 @@ Demo video: [`https://youtu.be/xlaFmEmFcYA`](https://youtu.be/xlaFmEmFcYA)
 ## Screenshots
 
 <p align="center">
-  <img src="chainchess-web/public/Screenshot%202025-11-28%20171239.png" alt="Dashboard" width="250">
-  <img src="chainchess-web/public/Screenshot%202025-11-28%20171253.png" alt="Lobby" width="250">
-  <img src="chainchess-web/public/Screenshot%202025-11-28%20180055.png" alt="Game Board" width="250">
-  
+  <img src="chainchess-web/public/Screenshot%202025-11-28%20171239.png" alt="Hero + connection panel" width="260">
+  <img src="chainchess-web/public/Screenshot%202025-11-28%20171253.png" alt="On-chain lobbies + leaderboard" width="260">
+  <img src="chainchess-web/public/Screenshot%202025-11-28%20180055.png" alt="Game board vs AI" width="260">
 </p>
 
-<p align="center"><i>Compact preview — three key screens side by side.</i></p>
+<p align="center"><i>Left to right: landing dashboard, on-chain lobby browser, and in-game board.</i></p>
 
 ## Manual run (advanced / full control)
 

@@ -24,6 +24,8 @@ import {
   VolumeX,
   Settings,
   History,
+  Sparkles,
+  Crown,
 } from 'lucide-react';
 import clsx from 'clsx';
 import './App.css';
@@ -33,6 +35,37 @@ import { ChessAI, type AIDifficulty } from './lib/ai';
 import { SoundManager } from './components/SoundManager';
 
 const STORAGE_KEY = 'chainchess-config-v1';
+
+type BoardThemeId = 'classic' | 'neon' | 'forest';
+
+const BOARD_THEMES: Record<
+  BoardThemeId,
+  {
+    label: string;
+    dark: string;
+    light: string;
+    shadow: string;
+  }
+> = {
+  classic: {
+    label: 'Classic',
+    dark: '#1f233d',
+    light: '#f2f5ff',
+    shadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+  },
+  neon: {
+    label: 'Neon',
+    dark: '#0f172a',
+    light: '#0f766e',
+    shadow: '0 22px 70px rgba(56, 189, 248, 0.55)',
+  },
+  forest: {
+    label: 'Forest',
+    dark: '#14532d',
+    light: '#ecfdf5',
+    shadow: '0 22px 70px rgba(16, 185, 129, 0.55)',
+  },
+};
 const queryClient = new QueryClient();
 
 class ErrorBoundary extends React.Component<{ fallback: React.ReactNode; children: React.ReactNode }, { hasError: boolean }> {
@@ -59,7 +92,7 @@ function SafeChessboard(props: SafeChessboardProps) {
       fallback={
         <div className="status-banner error">
           <AlertTriangle size={16} />
-          <span>Board failed to render. Check chessboard / React versions.</span>
+          <span>Board is temporarily unavailable. Try refreshing the page or restarting the app.</span>
         </div>
       }
     >
@@ -90,6 +123,8 @@ function ChainChessDashboard() {
     applicationId: initialConfig?.applicationId ?? envDefaults.applicationId ?? '',
   }));
   const [activeView, setActiveView] = useState<'onchain' | 'local' | 'ai'>('onchain');
+  const [modeLocked, setModeLocked] = useState(false);
+  const [boardTheme, setBoardTheme] = useState<BoardThemeId>('classic');
   const [filter, setFilter] = useState<'all' | 'active' | 'lobby' | 'finished'>('all');
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
@@ -103,6 +138,7 @@ function ChainChessDashboard() {
   }, [soundsEnabled]);
 
   const api = useMemo(() => (config ? new ChainChessApi(config) : null), [config]);
+  const theme = useMemo(() => BOARD_THEMES[boardTheme], [boardTheme]);
   const rqClient = useQueryClient();
 
   const stateQuery = useQuery<ChainStateResponse>({
@@ -334,7 +370,7 @@ function ChainChessDashboard() {
   return (
     <div className="app-shell">
       <header className="hero-panel">
-        <div>
+        <div className="hero-main">
           <p className="eyebrow">♟️ ChainChess · Decentralized Chess Platform</p>
           <h1>
             ChainChess
@@ -384,6 +420,19 @@ function ChainChessDashboard() {
               {soundsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
               {soundsEnabled ? 'Sound On' : 'Sound Off'}
             </button>
+            <div className="theme-select">
+              <span className="muted tiny">Board theme</span>
+              <select
+                value={boardTheme}
+                onChange={(e) => setBoardTheme(e.target.value as BoardThemeId)}
+              >
+                {Object.entries(BOARD_THEMES).map(([id, value]) => (
+                  <option key={id} value={id}>
+                    {value.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
         <div className="highlight-card">
@@ -394,6 +443,37 @@ function ChainChessDashboard() {
               <p>Backend contract + frontend orchestrator bundled in this repo.</p>
             </div>
           </div>
+
+          <div className="hero-mini-board">
+            <SafeChessboard
+              options={{
+                position: 'start',
+                boardOrientation: 'white',
+                allowDragging: false,
+                darkSquareStyle: { backgroundColor: theme.dark },
+                lightSquareStyle: { backgroundColor: theme.light },
+                boardStyle: {
+                  borderRadius: '18px',
+                  boxShadow: theme.shadow,
+                },
+              }}
+            />
+          </div>
+
+          <div className="highlight-meta">
+            <p className="muted tiny">Snapshot</p>
+            <ul>
+              <li>On-chain lobbies + games on your Linera microchain</li>
+              <li>Built-in AI + local practice modes in the same UI</li>
+              <li>One command: <code>docker compose up</code> for the full stack</li>
+            </ul>
+            <div className="highlight-pills">
+              <span className="pill">On-chain</span>
+              <span className="pill">AI ready</span>
+              <span className="pill">Local sandbox</span>
+            </div>
+          </div>
+
           <span className="tag">App ID aware UI</span>
         </div>
       </header>
@@ -402,7 +482,8 @@ function ChainChessDashboard() {
         <button
           type="button"
           className={clsx('mode-chip', activeView === 'onchain' && 'active')}
-          onClick={() => setActiveView('onchain')}
+          onClick={() => !modeLocked && setActiveView('onchain')}
+          disabled={modeLocked && activeView !== 'onchain'}
         >
           <Zap size={14} />
           On-chain
@@ -410,7 +491,8 @@ function ChainChessDashboard() {
         <button
           type="button"
           className={clsx('mode-chip', activeView === 'ai' && 'active')}
-          onClick={() => setActiveView('ai')}
+          onClick={() => !modeLocked && setActiveView('ai')}
+          disabled={modeLocked && activeView !== 'ai'}
         >
           <Bot size={14} />
           Play vs AI
@@ -418,7 +500,8 @@ function ChainChessDashboard() {
         <button
           type="button"
           className={clsx('mode-chip', activeView === 'local' && 'active')}
-          onClick={() => setActiveView('local')}
+          onClick={() => !modeLocked && setActiveView('local')}
+          disabled={modeLocked && activeView !== 'local'}
         >
           <Settings size={14} />
           Practice
@@ -611,14 +694,14 @@ function ChainChessDashboard() {
               <div className="board-wrapper">
                 <SafeChessboard
                   options={{
-                    position: selectedGame?.boardFen ?? 'start',
+                    position: safeFen(selectedGame?.boardFen),
                     boardOrientation: orientation as 'white' | 'black',
                     allowDragging: canSubmitMove,
-                    darkSquareStyle: { backgroundColor: '#1f233d' },
-                    lightSquareStyle: { backgroundColor: '#f2f5ff' },
+                    darkSquareStyle: { backgroundColor: theme.dark },
+                    lightSquareStyle: { backgroundColor: theme.light },
                     boardStyle: {
                       borderRadius: '32px',
-                      boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+                      boxShadow: theme.shadow,
                       transition: 'all 0.3s ease',
                     },
                     onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
@@ -630,6 +713,13 @@ function ChainChessDashboard() {
                 {!canSubmitMove && (
                   <div className="board-overlay">
                     <p>{getOverlayMessage(selectedGame, config)}</p>
+                  </div>
+                )}
+                {selectedGame?.status === 'Finished' && selectedGame.winner && (
+                  <div className="winner-banner">
+                    <Crown size={18} />
+                    <span>{selectedGame.winner} wins</span>
+                    <Sparkles size={18} />
                   </div>
                 )}
                 {showHints && selectedGame && canSubmitMove && (
@@ -793,13 +883,30 @@ function ChainChessDashboard() {
         </>
       )}
 
-      {activeView === 'ai' && <AIPlayPanel soundsEnabled={soundsEnabled} />}
-      {activeView === 'local' && <LocalPlayPanel soundsEnabled={soundsEnabled} />}
+      {activeView === 'ai' && (
+        <AIPlayPanel
+          soundsEnabled={soundsEnabled}
+          theme={theme}
+          lockModes={() => setModeLocked(true)}
+          unlockModes={() => setModeLocked(false)}
+        />
+      )}
+      {activeView === 'local' && <LocalPlayPanel soundsEnabled={soundsEnabled} theme={theme} />}
     </div>
   );
 }
 
-function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
+function AIPlayPanel({
+  soundsEnabled,
+  theme,
+  lockModes,
+  unlockModes,
+}: {
+  soundsEnabled: boolean;
+  theme: { dark: string; light: string; shadow: string };
+  lockModes: () => void;
+  unlockModes: () => void;
+}) {
   const [game] = useState(() => new Chess());
   const [fen, setFen] = useState(game.fen());
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
@@ -816,6 +923,7 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
     you: [],
     ai: [],
   });
+  const [pgnCopied, setPgnCopied] = useState(false);
 
   useEffect(() => {
     ai.setDifficulty(aiDifficulty);
@@ -895,14 +1003,36 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
 
   useEffect(() => {
     resetGame();
-  }, [playerColor, resetGame]);
+    unlockModes();
+  }, [playerColor, resetGame, unlockModes]);
 
   useEffect(() => {
     setOrientation(playerColor);
   }, [playerColor]);
 
+  useEffect(() => {
+    // Lock mode switching once any move has been played; unlock on reset
+    if (moveHistory.length > 0) {
+      lockModes();
+    }
+  }, [moveHistory.length, lockModes]);
+
   const flipBoard = () => {
     setOrientation((prev) => (prev === 'white' ? 'black' : 'white'));
+  };
+
+  const copyPgn = () => {
+    try {
+      const pgn = game.pgn({ newline: '\n' });
+      if (!pgn) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        void navigator.clipboard.writeText(pgn);
+      }
+      setPgnCopied(true);
+      setTimeout(() => setPgnCopied(false), 1500);
+    } catch {
+      // ignore copy failures
+    }
   };
 
   const getHint = () => {
@@ -989,14 +1119,14 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
       <div className="board-wrapper">
         <SafeChessboard
           options={{
-            position: fen,
+            position: safeFen(fen),
             boardOrientation: orientation,
             allowDragging: !aiThinking && !game.isGameOver() && game.turn() === playerTurnColor,
-            darkSquareStyle: { backgroundColor: '#1f233d' },
-            lightSquareStyle: { backgroundColor: '#f2f5ff' },
+            darkSquareStyle: { backgroundColor: theme.dark },
+            lightSquareStyle: { backgroundColor: theme.light },
             boardStyle: {
               borderRadius: '32px',
-              boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+              boxShadow: theme.shadow,
             },
             squareStyles: highlightStyles,
             arrows: lastMoveSquares
@@ -1078,6 +1208,9 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
             <Lightbulb size={16} />
             Hint
           </button>
+          <button className="ghost-btn" type="button" onClick={copyPgn}>
+            {pgnCopied ? 'PGN Copied' : 'Copy PGN'}
+          </button>
         </div>
       </div>
 
@@ -1099,13 +1232,20 @@ function AIPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
   );
 }
 
-function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
+function LocalPlayPanel({
+  soundsEnabled,
+  theme,
+}: {
+  soundsEnabled: boolean;
+  theme: { dark: string; light: string; shadow: string };
+}) {
   const [localGame] = useState(() => new Chess());
   const [fen, setFen] = useState(localGame.fen());
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [status, setStatus] = useState<string>(() => describeLocalStatus(localGame));
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const [, setHistoryIndex] = useState(-1);
+  const [pgnCopied, setPgnCopied] = useState(false);
 
   const resetGame = () => {
     localGame.reset();
@@ -1164,6 +1304,20 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
     setStatus(describeLocalStatus(localGame));
   }, [localGame]);
 
+  const copyPgn = () => {
+    try {
+      const pgn = localGame.pgn({ newline: '\n' });
+      if (!pgn) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        void navigator.clipboard.writeText(pgn);
+      }
+      setPgnCopied(true);
+      setTimeout(() => setPgnCopied(false), 1500);
+    } catch {
+      // ignore copy failures
+    }
+  };
+
   return (
     <section className="panel board-panel local-panel">
       <header className="panel-header">
@@ -1176,14 +1330,14 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
       <div className="board-wrapper">
         <SafeChessboard
           options={{
-            position: fen,
+            position: safeFen(fen),
             boardOrientation: orientation,
             allowDragging: true,
-            darkSquareStyle: { backgroundColor: '#1f233d' },
-            lightSquareStyle: { backgroundColor: '#f2f5ff' },
+            darkSquareStyle: { backgroundColor: theme.dark },
+            lightSquareStyle: { backgroundColor: theme.light },
             boardStyle: {
               borderRadius: '32px',
-              boxShadow: '0 20px 60px rgba(5, 7, 13, 0.35)',
+              boxShadow: theme.shadow,
             },
             onPieceDrop: ({ sourceSquare, targetSquare, piece }) =>
               sourceSquare && targetSquare
@@ -1208,6 +1362,9 @@ function LocalPlayPanel({ soundsEnabled }: { soundsEnabled: boolean }) {
           <button className="ghost-btn" type="button" onClick={undoMove} disabled={moveHistory.length === 0}>
             {History ? <History size={16} /> : null}
             Undo
+          </button>
+          <button className="ghost-btn" type="button" onClick={copyPgn}>
+            {pgnCopied ? 'PGN Copied' : 'Copy PGN'}
           </button>
         </div>
       </div>
@@ -1304,4 +1461,15 @@ function getOverlayMessage(game: GameSummary | null, config: ChainConfig | null)
   if (game.status === 'Lobby') return 'Waiting for an opponent';
   if (game.status === 'Finished') return game.winner ? `${game.winner} won this match` : 'Game concluded';
   return "It's not your turn yet";
+}
+
+function safeFen(value?: string | null): string {
+  if (!value || value === 'start') return 'start';
+  try {
+    const chess = new Chess();
+    chess.load(value);
+    return chess.fen();
+  } catch {
+    return 'start';
+  }
 }
